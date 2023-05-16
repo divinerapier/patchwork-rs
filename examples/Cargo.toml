@@ -1,0 +1,35 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[dependencies]
+patchwork = { path = "../" }
+nalgebra = "0.32"
+dotenv = "0.15"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+patchwork = { path = "../" }
+nalgebra = "0.32"
+dotenv = "0.15"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+[[example]]
+name = "readbin"
+path = "./readbin.rs"
+
+[[example]]
+name = "check_point"
+path = "./check_point.rs"
+
+[[example]]
+name = "check_ver_angle"
+path = "./check_ver_angle.rs"
+
+[[example]]
+name = "check_theta"
+path = "./check_theta.rs"
