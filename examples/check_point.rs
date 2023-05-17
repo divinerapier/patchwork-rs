@@ -11,7 +11,7 @@ struct Item {
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
         fn ef(a: f64, b: f64) -> bool {
-            a - b < 0.0001
+            (a - b).abs() < 0.0001
         }
         self.i == other.i && ef(self.x, other.x) && ef(self.y, other.y) && ef(self.z, other.z)
     }
@@ -25,14 +25,22 @@ fn main() {
     // let v: f64 = (2.0f64).atan2(3.0);
     // println!("(2.0).atan2(3.0) = {}", v);
 
-    return;
-    let rust = parse_file("rust.log");
-    let cpp = parse_file("cpp.log");
+    let rust = parse_file("rust_points.log");
+    let cpp = parse_file("cpp_points.log");
 
     assert_eq!(rust.len(), cpp.len());
 
+    let mut count = 0;
     for (r, c) in rust.into_iter().zip(&cpp) {
-        assert_eq!(r, *c);
+        // assert_eq!(r, *c);
+        if &r != c {
+            count += 1;
+            println!("rust = {:?}", r);
+            println!("cpp  = {:?}", c);
+        }
+    }
+    if count != 0 {
+        assert!(false);
     }
 }
 

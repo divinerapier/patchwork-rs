@@ -1,5 +1,3 @@
-use std::println;
-
 #[derive(Debug)]
 struct Item {
     deg: f64,
@@ -8,7 +6,7 @@ struct Item {
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
         fn ef(a: f64, b: f64) -> bool {
-            a - b < 0.0001
+            (a - b).abs() < 0.0001
         }
         ef(self.deg, other.deg)
     }

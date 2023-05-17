@@ -16,7 +16,7 @@ struct Item {
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
         fn ef(a: f64, b: f64) -> bool {
-            a - b < 0.0001
+            (a - b).abs() < 0.0001
         }
         self.i == other.i
             && self.index == other.index
@@ -36,10 +36,15 @@ fn main() {
     let rust = parse_file("rust_theta.log");
     let cpp = parse_file("cpp_theta.log");
 
-    for (index, item) in rust {
+    for (index, item) in &rust {
         let other = cpp.get(&index).expect(&format!("id = {}", index));
-        assert_eq!(&item, other);
+        assert_eq!(item, other);
     }
+
+    // for (index, item) in &cpp {
+    //     let other = rust.get(&index).expect(&format!("id = {}", index));
+    //     assert_eq!(item, other);
+    // }
 }
 
 fn parse_file(file: &str) -> HashMap<usize, Item> {

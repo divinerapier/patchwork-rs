@@ -391,7 +391,7 @@ impl PatchWorkpp {
         debug_matrix("d", &d);
 
         self.d = d[0];
-        println!("self.d: {:?}\n", self.d);
+        // println!("self.d: {:?}\n", self.d);
     }
 
     pub fn extract_initial_seeds_with_th_seed(
@@ -485,6 +485,16 @@ impl PatchWorkpp {
 
         let num_zones = self.params.num_zones as usize;
 
+        println!("num_zones = {}", num_zones);
+        println!(
+            "num_rings_each_zone = {:?}",
+            self.params.num_rings_each_zone
+        );
+        println!(
+            "num_sectors_each_zone = {:?}",
+            self.params.num_sectors_each_zone
+        );
+        // std::process::exit(1);
         for zone_idx in 0..num_zones {
             // let zone = &mut self.concentric_zone_model[zone_idx];
 
@@ -543,9 +553,24 @@ impl PatchWorkpp {
                     //
                     // Therefore, we only check this value when concentric_idx < num_rings_of_interest ( near condition )
                     let is_upright = ground_uprightness > self.params.uprightness_thr;
-                    let is_not_elevated =
-                        ground_elevation < self.params.elevation_thr[concentric_idx];
-                    let is_flat = ground_flatness < self.params.flatness_thr[concentric_idx];
+                    println!(
+                        "zone: {} ring: {} sector: {} is_upright: {}: heading: {} concentric_idx: {} elevation_thr[{}]: {}",
+                        zone_idx, ring_idx, sector_idx, is_upright, heading,concentric_idx,concentric_idx,self.params.elevation_thr.get(concentric_idx).copied().unwrap_or(f64::MIN)
+                    );
+                    let is_not_elevated = ground_elevation
+                        < self
+                            .params
+                            .elevation_thr
+                            .get(concentric_idx)
+                            .copied()
+                            .unwrap_or(f64::MIN);
+                    let is_flat = ground_flatness
+                        < self
+                            .params
+                            .flatness_thr
+                            .get(concentric_idx)
+                            .copied()
+                            .unwrap_or(f64::MIN);
                     let is_near_zone = concentric_idx < self.params.num_rings_of_interest as usize;
                     let is_heading_outside = heading < 0.0;
 
@@ -726,8 +751,8 @@ impl PatchWorkpp {
         }
 
         let mut cnt = 0;
-
-        for mut row in cloud_in.row_iter_mut() {
+        let mut line_numbers = vec![];
+        for (i, mut row) in cloud_in.row_iter_mut().enumerate() {
             // double r = sqrt(
             //     cloud_in.row(i)(0) * cloud_in.row(i)(0) + cloud_in.row(i)(1) * cloud_in.row(i)(1));
             let a = row[0];
@@ -746,9 +771,19 @@ impl PatchWorkpp {
                 self.cloud_ground
                     .push(PointXYZ::new(row[0], row[1], row[2]));
                 row[2] = f64::MIN;
+                println!(
+                    "i = {} r = {} z = {} ver_angle_in_deg = {}",
+                    i, r, z, ver_angle_in_deg
+                );
+                line_numbers.push(i);
                 cnt += 1;
             }
         }
+        // for num in line_numbers {
+        //     println!("{:?}", debug_matrix("name", &cloud_in.row(num)));
+        // }
+        // println!("f64::MIN::cnt = {}", cnt);
+        // std::process::exit(1);
         if self.params.verbose {
             // TODO: tracing
         }
@@ -794,6 +829,8 @@ impl PatchWorkpp {
             let x = row[0];
             let y = row[1];
             let z = row[2];
+
+            // println!("i = {} x = {} y = {} z = {}", i, x, y, z);
 
             let r = xy2radius(x, y);
             if (r <= max_range) && (r > min_range) {
@@ -961,6 +998,7 @@ pub fn debug_matrix<
     name: &str,
     matrix: &nalgebra::Matrix<T, R, C, S>,
 ) {
+    return;
     println!("debug matrix [{name}]:",);
     for (index, row) in matrix.row_iter().enumerate() {
         print!("[");

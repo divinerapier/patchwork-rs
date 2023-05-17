@@ -7,6 +7,10 @@ fn main() {
     println!("hello world")
 }
 
+// i = 115929 r = 13.750170634906302 z = -5.282143592834473 ver_angle_in_deg = -21.01433542566051
+// i = 115930 r = 13.783687151198826 z = -5.295128345489502 ver_angle_in_deg = -21.014731498586254
+// i = 118072 r = 26.416925607528498 z = -11.03048324584961 ver_angle_in_deg = -22.663153042742152
+
 fn sequential() {
     dotenv::dotenv().unwrap();
     // println!("{:?}", std::env::var("RUST_MIN_STACK"));
@@ -36,6 +40,13 @@ fn sequential() {
             mat[(i, 1)] = points[i * 4 + 1] as f64;
             mat[(i, 2)] = points[i * 4 + 2] as f64;
             mat[(i, 3)] = points[i * 4 + 3] as f64;
+            // println!(
+            //     "i = {} x = {} y = {} z = {}",
+            //     i,
+            //     points[i * 4] as f64,
+            //     points[i * 4 + 1] as f64,
+            //     points[i * 4 + 2] as f64
+            // );
         }
         // patchwork::debug_matrix("mat", &mat);
         println!("buffer.len() = {:?}, result = {}", buffer.len(), result);
