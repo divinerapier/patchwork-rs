@@ -1,12 +1,71 @@
-pub fn nx4f64_from_raw_buffer(
-    mut buffer: Vec<u8>,
+// pub fn nx4f32_from_raw_buffer(
+//     mut buffer: Vec<u8>,
+// ) -> nalgebra::Matrix<
+//     f32,
+//     nalgebra::Dyn,
+//     nalgebra::Const<4>,
+//     nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<4>>,
+// > {
+//     assert!(buffer.len() % 4 == 0);
+
+//     let buffer_length = buffer.len();
+//     let points = {
+//         let len = buffer_length / 4;
+//         unsafe {
+//             let v = Vec::from_raw_parts(buffer.as_mut_ptr() as *mut f32, len, len);
+//             std::mem::forget(buffer);
+//             v
+//         }
+//     };
+//     let num_points = points.len() / 4;
+//     let mut mat: nalgebra::Matrix<
+//         f32,
+//         nalgebra::Dyn,
+//         nalgebra::Const<4>,
+//         nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<4>>,
+//     > = nalgebra::MatrixXx4::<f32>::zeros(num_points);
+//     for i in 0..num_points {
+//         mat[(i, 0)] = points[i * 4] as f32;
+//         mat[(i, 1)] = points[i * 4 + 1] as f32;
+//         mat[(i, 2)] = points[i * 4 + 2] as f32;
+//         mat[(i, 3)] = points[i * 4 + 3] as f32;
+//     }
+//     mat
+// }
+
+pub fn nx4f32_from_raw_buffer(
+    buffer: Vec<u8>,
 ) -> nalgebra::Matrix<
     f32,
     nalgebra::Dyn,
     nalgebra::Const<4>,
     nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<4>>,
 > {
-    assert!(buffer.len() % 4 == 0);
+    matrix_from_raw_buffer::<4>(buffer)
+}
+
+pub fn nx3f32_from_raw_buffer(
+    buffer: Vec<u8>,
+) -> nalgebra::Matrix<
+    f32,
+    nalgebra::Dyn,
+    nalgebra::Const<3>,
+    nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<3>>,
+> {
+    matrix_from_raw_buffer::<3>(buffer)
+}
+
+/// This function takes a buffer of bytes and returns a matrix of floats.
+/// The buffer is assumed to be a sequence of floats in row-major order.
+pub fn matrix_from_raw_buffer<const N: usize>(
+    mut buffer: Vec<u8>,
+) -> nalgebra::Matrix<
+    f32,
+    nalgebra::Dyn,
+    nalgebra::Const<N>,
+    nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<N>>,
+> {
+    assert!(buffer.len() % N == 0);
 
     let buffer_length = buffer.len();
     let points = {
@@ -17,18 +76,56 @@ pub fn nx4f64_from_raw_buffer(
             v
         }
     };
-    let num_points = points.len() / 4;
+    let num_points = points.len() / N;
     let mut mat: nalgebra::Matrix<
         f32,
         nalgebra::Dyn,
-        nalgebra::Const<4>,
-        nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<4>>,
-    > = nalgebra::MatrixXx4::<f32>::zeros(num_points);
+        nalgebra::Const<N>,
+        nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<N>>,
+    > = nalgebra::Matrix::<f32, nalgebra::Dyn, nalgebra::Const<N>, _>::zeros(num_points);
     for i in 0..num_points {
-        mat[(i, 0)] = points[i * 4] as f32;
-        mat[(i, 1)] = points[i * 4 + 1] as f32;
-        mat[(i, 2)] = points[i * 4 + 2] as f32;
-        mat[(i, 3)] = points[i * 4 + 3] as f32;
+        for col in 0..N {
+            mat[(i, col)] = points[i * 4 + col] as f32;
+        }
+    }
+    mat
+}
+
+/// This function is the same as `matrix_from_raw_buffer` except that it drops the last column.
+/// This is useful for reading in a matrix of points from a file where the last column is
+/// a label or some other data that we don't want to include in the matrix.
+pub fn matrix_from_raw_buffer_drop_last<const N: usize>(
+    mut buffer: Vec<u8>,
+) -> nalgebra::Matrix<
+    f32,
+    nalgebra::Dyn,
+    nalgebra::Const<N>,
+    nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<N>>,
+> {
+    assert!(buffer.len() % (N + 1) == 0);
+
+    let buffer_length = buffer.len();
+    let points = {
+        let len = buffer_length / 4; // 4 bytes per float
+        unsafe {
+            let v = Vec::from_raw_parts(buffer.as_mut_ptr() as *mut f32, len, len);
+            std::mem::forget(buffer);
+            v
+        }
+    };
+    let num_points = points.len() / (N + 1); // N floats per point
+    let mut mat: nalgebra::Matrix<
+        f32,
+        nalgebra::Dyn,
+        nalgebra::Const<N>,
+        nalgebra::VecStorage<f32, nalgebra::Dyn, nalgebra::Const<N>>,
+    > = nalgebra::Matrix::<f32, nalgebra::Dyn, nalgebra::Const<N>, _>::zeros(num_points);
+    for i in 0..num_points {
+        for col in 0..(N + 1) {
+            if col != N {
+                mat[(i, col)] = points[i * 4 + col] as f32;
+            }
+        }
     }
     mat
 }

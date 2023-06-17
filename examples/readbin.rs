@@ -30,37 +30,41 @@ fn read_bin(path: &str) {
     let buffer_length = buffer.len();
     // file.read_exact(&mut buffer).unwrap();
     // println!("buffer = {:?}", &buffer[..100]);
-    let points = {
-        let len = buffer_length / 4;
-        unsafe {
-            let v = Vec::from_raw_parts(buffer.as_mut_ptr() as *mut f32, len, len);
-            std::mem::forget(buffer);
-            v
-        }
-    };
+    // let points = {
+    //     let len = buffer_length / 4;
+    //     unsafe {
+    //         let v = Vec::from_raw_parts(buffer.as_mut_ptr() as *mut f32, len, len);
+    //         std::mem::forget(buffer);
+    //         v
+    //     }
+    // };
 
-    // let points = unsafe { std::mem::transmute::<Vec<u8>, Vec<f32>>(buffer) };
-    // println!("points = {:?}", &points[..25]);
+    // // let points = unsafe { std::mem::transmute::<Vec<u8>, Vec<f32>>(buffer) };
+    // // println!("points = {:?}", &points[..25]);
 
-    let num_points = points.len() / 4;
-    // println!("num_points = {:?}", num_points);
+    // let num_points = points.len() / 4;
+    // // println!("num_points = {:?}", num_points);
 
-    let mut mat: nalgebra::Matrix<f32, Dyn, Const<4>, nalgebra::VecStorage<f32, Dyn, Const<4>>> =
-        nalgebra::MatrixXx4::<f32>::zeros(num_points);
-    // // super::debug_matrix("mat", &mat);
-    for i in 0..num_points {
-        mat[(i, 0)] = points[i * 4] as f32;
-        mat[(i, 1)] = points[i * 4 + 1] as f32;
-        mat[(i, 2)] = points[i * 4 + 2] as f32;
-        mat[(i, 3)] = points[i * 4 + 3] as f32;
-        // println!(
-        //     "i = {} x = {} y = {} z = {}",
-        //     i,
-        //     points[i * 4] as f64,
-        //     points[i * 4 + 1] as f64,
-        //     points[i * 4 + 2] as f64
-        // );
-    }
+    // let mut mat: nalgebra::Matrix<f32, Dyn, Const<4>, nalgebra::VecStorage<f32, Dyn, Const<4>>> =
+    //     nalgebra::MatrixXx4::<f32>::zeros(num_points);
+    // // // super::debug_matrix("mat", &mat);
+    // for i in 0..num_points {
+    //     mat[(i, 0)] = points[i * 4] as f32;
+    //     mat[(i, 1)] = points[i * 4 + 1] as f32;
+    //     mat[(i, 2)] = points[i * 4 + 2] as f32;
+    //     mat[(i, 3)] = points[i * 4 + 3] as f32;
+    //     // println!(
+    //     //     "i = {} x = {} y = {} z = {}",
+    //     //     i,
+    //     //     points[i * 4] as f64,
+    //     //     points[i * 4 + 1] as f64,
+    //     //     points[i * 4 + 2] as f64
+    //     // );
+    // }
+
+    // let mut mat = patchwork::nx4f32_from_raw_buffer(buffer);
+
+    let mut mat = patchwork::matrix_from_raw_buffer_drop_last::<3>(buffer);
 
     // 这里的想法是直接使用转换后的 vector 作为 matrix 的底层存储。但是很遗憾的是，
     // nalgebra 使用列优先数据结构，即列数据是相邻的。而我们的 vector 是行优先的，即行数据是相邻的。
@@ -144,14 +148,22 @@ fn read_bin(path: &str) {
     println!("buffer.len() = {:?}, result = {}", buffer_length, result);
     println!("size = {:?}", size);
     // println!("points.len() = {}", points.len());
-    println!("num points: {}", num_points);
+    println!("num points: {}", mat.len());
     let params = Params::default();
     let mut patchworkpp = PatchWorkpp::new(params);
     patchworkpp.estimate_ground(&mut mat);
     let ground = patchworkpp.get_ground();
     println!("ground = ",);
-    for row in ground.row_iter() {
+    // for row in ground.row_iter() {
+    //     println!("{} {} {}", row[0], row[1], row[2]);
+    //     return;
+    // }
+
+    {
+        let row = ground.row_iter().next().unwrap();
         println!("{} {} {}", row[0], row[1], row[2]);
-        return;
+
+        let row = ground.row_iter().last().unwrap();
+        println!("{} {} {}", row[0], row[1], row[2]);
     }
 }
