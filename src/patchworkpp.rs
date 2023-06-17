@@ -36,6 +36,12 @@ pub struct PatchWorkpp {
     normals: Points,
 }
 
+pub enum EstimatePlaneTarget {
+    GroundPC,
+    RegionwiseGround,
+    Other(Points),
+}
+
 impl PatchWorkpp {
     pub fn new(params: Params) -> Self {
         let min_range_z2 = (7.0 * params.min_range + params.max_range) / 8.0;
@@ -133,7 +139,13 @@ impl PatchWorkpp {
         }
     }
 
-    pub fn estimate_plane(&mut self, ground: &[Point3D]) {
+    pub fn estimate_plane(&mut self, target: EstimatePlaneTarget) {
+        let ground = match target {
+            EstimatePlaneTarget::GroundPC => &self.ground_pc,
+            EstimatePlaneTarget::RegionwiseGround => &self.regionwise_ground,
+            EstimatePlaneTarget::Other(ref points) => points,
+        };
+
         if ground.is_empty() {
             return;
         }
@@ -147,17 +159,13 @@ impl PatchWorkpp {
 
         // // eigen_ground.colwise().mean() 计算每一列的平均值 (mean)，假设原矩阵为 M x N，则计算结果为 1 x N 维向量
         // // eigen_ground.rowwise() - eigen_ground.colwise().mean() 每一行与后面的向量计算减法
-        // Eigen::MatrixX3f centered = eigen_ground.rowwise() - eigen_ground.colwise().mean();
-        // Eigen::MatrixX3f cov = (centered.adjoint() * centered) / double(eigen_ground.rows() - 1);
-        //
         let mean = eigen_ground.row_mean();
-        debug_matrix("mean", &mean);
-        {
-            self.pc_mean[0] = mean[0];
-            self.pc_mean[1] = mean[1];
-            self.pc_mean[2] = mean[2];
-            debug_matrix("pc mean", &self.pc_mean);
-        }
+
+        // debug_matrix("mean", &mean);
+        self.pc_mean[0] = mean[0];
+        self.pc_mean[1] = mean[1];
+        self.pc_mean[2] = mean[2];
+        // debug_matrix("pc mean", &self.pc_mean);
 
         let centered = eigen_ground
             .row_iter()
@@ -165,51 +173,51 @@ impl PatchWorkpp {
             .collect::<Vec<_>>();
 
         let centered = MatrixXx3::from_rows(centered.as_slice());
-        debug_matrix("centered", &centered);
+        // debug_matrix("centered", &centered);
 
         let cov = (centered.adjoint() * &centered) / (centered.nrows() as f32 - 1.0);
-        debug_matrix("cov", &cov);
+        // debug_matrix("cov", &cov);
 
         // https://github.com/dimforge/nalgebra/issues/1072#issuecomment-1029808465
         // let mut svd = cov.try_svd(true, true, 4.0 * f64::EPSILON, 0).unwrap();
         let mut svd = nalgebra::SVD::new(cov, true, true);
         self.singular_values = svd.singular_values;
-        debug_matrix("singular_values", &self.singular_values);
+        // debug_matrix("singular_values", &self.singular_values);
 
         let u = svd.u.take().unwrap();
-        debug_matrix("svd.u", &u);
+        // debug_matrix("svd.u", &u);
 
         // v_t 就是转置过的矩阵，就是公式中的 A = U∑V^T 中的 V^T
         // 其中 ∑ 是一个对角矩阵，对角线上的元素就是 svd.singular_values
         let v_t = svd.v_t.take().unwrap();
-        debug_matrix("svd.v_t", &v_t);
+        // debug_matrix("svd.v_t", &v_t);
 
-        debug_matrix(
-            "xx",
-            &(u * nalgebra::matrix![
-                self.singular_values [0], 0.0, 0.0;
-                0.0, self.singular_values [1], 0.0;
-                0.0, 0.0, self.singular_values [2];
-            ] * v_t),
-        );
+        // debug_matrix(
+        //     "xx",
+        //     &(u * nalgebra::matrix![
+        //         self.singular_values [0], 0.0, 0.0;
+        //         0.0, self.singular_values [1], 0.0;
+        //         0.0, 0.0, self.singular_values [2];
+        //     ] * v_t),
+        // );
 
         // let u = svd.v_t.take().unwrap().transpose();
         // debug_matrix("svd.u", &u);
 
         let normal = u.column(2).to_owned();
         self.normal = Vector3::new(normal[0], normal[1], normal[2]);
-        debug_matrix("normal", &self.normal);
+        // debug_matrix("normal", &self.normal);
 
         if self.normal[2] < 0.0 {
             self.normal = -self.normal;
         }
-        debug_matrix("normal", &self.normal);
+        // debug_matrix("normal", &self.normal);
 
         let seeds_mean = self.pc_mean;
-        debug_matrix("seeds_mean", &seeds_mean);
+        // debug_matrix("seeds_mean", &seeds_mean);
 
         let d = self.normal.transpose() * seeds_mean;
-        debug_matrix("d", &d);
+        // debug_matrix("d", &d);
 
         self.d = d[0] as f64;
         // println!("self.d: {:?}\n", self.d);
@@ -266,8 +274,8 @@ impl PatchWorkpp {
         &mut self,
         cloud_in: &mut nalgebra::Matrix<f32, R, C, S>,
     ) {
-        self.cloud_ground.clear();
-        self.cloud_nonground.clear();
+        self.cloud_ground.clear(); // ok
+        self.cloud_nonground.clear(); // ok
 
         if self.params.verbose {
             // TODO: tracing
@@ -281,11 +289,11 @@ impl PatchWorkpp {
 
         // let t1 = Instant::now();
 
-        self.flush_patches();
+        self.flush_patches(); // ok
 
         // let t1_1 = Instant::now();
 
-        self.pc2czm(cloud_in);
+        self.pc2czm(cloud_in); // ok
 
         // let t2 = Instant::now();
 
@@ -294,54 +302,37 @@ impl PatchWorkpp {
         self.centers.clear();
         self.normals.clear();
 
-        // let t_flush = t1_1.duration_since(t1);
-        // let t_czm = t2.duration_since(t1_1);
-
-        // let mut t_sort = 0.0;
-        // let mut t_pca = 0.0;
-        // let mut t_gle = 0.0;
-        // let mut t_revert = 0.0;
-        // let mut t_update = 0.0;
-
         let mut candidates = Vec::<RevertCandidate>::new();
         let mut ringwise_flatness = Vec::<f64>::new();
 
         let num_zones = self.params.num_zones as usize;
 
-        println!("num_zones = {}", num_zones);
-        println!(
-            "num_rings_each_zone = {:?}",
-            self.params.num_rings_each_zone
-        );
-        println!(
-            "num_sectors_each_zone = {:?}",
-            self.params.num_sectors_each_zone
-        );
-        // std::process::exit(1);
+        // println!("num_zones = {}", num_zones);
+        // println!(
+        //     "num_rings_each_zone = {:?}",
+        //     self.params.num_rings_each_zone
+        // );
+        // println!(
+        //     "num_sectors_each_zone = {:?}",
+        //     self.params.num_sectors_each_zone
+        // );
         for zone_idx in 0..num_zones {
-            // let zone = &mut self.concentric_zone_model[zone_idx];
-
             for ring_idx in 0..self.params.num_rings_each_zone[zone_idx] {
                 for sector_idx in 0..self.params.num_sectors_each_zone[zone_idx] {
-                    let zone = &mut self.concentric_zone_model[zone_idx];
+                    let zone = &self.concentric_zone_model[zone_idx];
+
                     if zone[ring_idx][sector_idx].len() < self.params.num_min_pts {
-                        // add_cloud(&mut self.cloud_nonground, &zone[ring_idx][sector_idx]);
                         self.cloud_nonground.add_cloud(&zone[ring_idx][sector_idx]);
                         continue;
                     }
-                    // --------- region-wise sorting (faster than global sorting method) ---------------- //
-                    let zone = &mut self.concentric_zone_model[zone_idx];
-                    // let t_before_sort = Instant::now();
-                    zone[ring_idx][sector_idx].sort_by(|x, y| x.compare_z(y));
-                    // let t_after_sort = Instant::now();
 
-                    // t_sort = t_sort + t_after_sort.duration_since(t_before_sort).as_secs_f64();
+                    // region-wise sorting (faster than global sorting method)
 
-                    // --------- PCA --------- //
-                    // let t_before_pca = Instant::now();
+                    self.concentric_zone_model[zone_idx][ring_idx][sector_idx]
+                        .sort_by(|x, y| x.compare_z(y));
+
+                    // PCA
                     self.extract_piecewiseground(zone_idx, ring_idx, sector_idx);
-                    // let t_after_pca = Instant::now();
-                    // t_pca = t_pca + t_after_pca.duration_since(t_before_pca).as_secs_f64();
                     self.centers.push(Point3D::new(
                         self.pc_mean[0],
                         self.pc_mean[1],
@@ -350,11 +341,10 @@ impl PatchWorkpp {
                     self.normals
                         .push(Point3D::new(self.normal[0], self.normal[1], self.normal[2]));
 
-                    // --------- GLE --------- //
-                    // let t_before_gle = Instant::now();
+                    // GLE
                     let ground_uprightness = self.normal[2] as f64;
                     let ground_elevation = self.pc_mean[2] as f64;
-                    let ground_flatness = self.singular_values[2] as f64;
+                    let ground_flatness = self.singular_values.min() as f64;
                     let line_variable = if self.singular_values[1] != 0.0 {
                         (self.singular_values[0] / self.singular_values[1]) as f64
                     } else {
@@ -374,42 +364,29 @@ impl PatchWorkpp {
                     //
                     // Therefore, we only check this value when concentric_idx < num_rings_of_interest ( near condition )
                     let is_upright = ground_uprightness > self.params.uprightness_thr;
-                    println!(
-                        "zone: {} ring: {} sector: {} is_upright: {}: heading: {} num_rings_of_interest: {} concentric_idx: {} elevation_thr: {:?} elevation_thr[{}]: {}",
-                        zone_idx,
-                        ring_idx,
-                        sector_idx,
-                        is_upright,
-                        heading,
-                        self.params.num_rings_of_interest,
-                        concentric_idx,
-                        self.params.elevation_thr,
-                        concentric_idx,
-                        self.params.elevation_thr.get(concentric_idx).copied().unwrap_or(f64::MIN),
-                    );
+                    // println!(
+                    //     "zone: {} ring: {} sector: {} is_upright: {}: heading: {} num_rings_of_interest: {} concentric_idx: {} elevation_thr: {:?} elevation_thr[{}]: {}",
+                    //     zone_idx,
+                    //     ring_idx,
+                    //     sector_idx,
+                    //     is_upright,
+                    //     heading,
+                    //     self.params.num_rings_of_interest,
+                    //     concentric_idx,
+                    //     self.params.elevation_thr,
+                    //     concentric_idx,
+                    //     self.params.elevation_thr.get(concentric_idx).copied().unwrap_or(f64::MIN),
+                    // );
                     let is_near_zone = concentric_idx < self.params.num_rings_of_interest as usize;
                     let is_heading_outside = heading < 0.0;
-                    let (is_not_elevated, is_flat) =
-                        if concentric_idx < self.params.num_rings_of_interest as usize {
-                            (
-                                ground_elevation
-                                    < self
-                                        .params
-                                        .elevation_thr
-                                        .get(concentric_idx)
-                                        .copied()
-                                        .unwrap_or(f64::MIN),
-                                ground_flatness
-                                    < self
-                                        .params
-                                        .flatness_thr
-                                        .get(concentric_idx)
-                                        .copied()
-                                        .unwrap_or(f64::MIN),
-                            )
-                        } else {
-                            (false, false)
-                        };
+                    let mut is_not_elevated = false;
+                    let mut is_flat = false;
+                    if concentric_idx < self.params.num_rings_of_interest as usize {
+                        is_not_elevated =
+                            ground_elevation < self.params.elevation_thr[concentric_idx];
+
+                        is_flat = ground_flatness < self.params.flatness_thr[concentric_idx];
+                    }
 
                     // Store the elevation & flatness variables
                     // for A-GLE (Adaptive Ground Likelihood Estimation)
@@ -424,21 +401,14 @@ impl PatchWorkpp {
 
                     // Ground estimation based on conditions
                     if !is_upright {
-                        // add_cloud(&mut self.cloud_nonground, &self.regionwise_ground);
                         self.cloud_nonground.add_cloud(&self.regionwise_ground);
                     } else if !is_near_zone {
-                        // add_cloud(&mut self.cloud_ground, &self.regionwise_ground);
                         self.cloud_ground.add_cloud(&self.regionwise_ground);
                     } else if !is_heading_outside {
-                        // add_cloud(&mut self.cloud_nonground, &self.regionwise_ground);
                         self.cloud_nonground.add_cloud(&self.regionwise_ground);
                     } else if is_not_elevated || is_flat {
-                        // add_cloud(&mut self.cloud_ground, &self.regionwise_ground);
                         self.cloud_ground.add_cloud(&self.regionwise_ground);
                     } else {
-                        // patchwork::RevertCandidate candidate(concentric_idx, sector_idx, ground_flatness, line_variable,
-                        //                                      pc_mean_, regionwise_ground_);
-                        // candidates.push_back(candidate);
                         candidates.push(RevertCandidate::new(
                             concentric_idx as i32,
                             sector_idx as i32,
@@ -450,14 +420,9 @@ impl PatchWorkpp {
                     }
 
                     self.cloud_nonground.add_cloud(&self.regionwise_nonground);
-
-                    // let t_after_gle = Instant::now();
-                    // t_gle = t_gle + t_after_gle.duration_since(t_before_gle).as_secs_f64();
                 }
 
-                // --------- Revert --------- //
-                // let t_before_revert = Instant::now();
-
+                // Revert
                 if !candidates.is_empty() {
                     if self.params.enable_TGR {
                         self.temporal_ground_revert(&ringwise_flatness, &candidates, concentric_idx)
@@ -470,21 +435,11 @@ impl PatchWorkpp {
                     ringwise_flatness.clear();
                 }
 
-                // let t_after_revert = Instant::now();
-                // t_revert =
-                //     t_revert + t_after_revert.duration_since(t_before_revert).as_secs_f64();
-
                 concentric_idx += 1;
             }
         }
-        // let t_before_update = Instant::now();
         self.update_elevation_thr();
         self.update_flatness_thr();
-        // let t_after_update = Instant::now();
-        // t_update = t_after_update.duration_since(t_before_update).as_secs_f64();
-
-        // let end = Instant::now();
-        // let t_total = end.duration_since(start).as_secs_f64();
     }
 
     fn update_elevation_thr(&mut self) {
@@ -513,7 +468,7 @@ impl PatchWorkpp {
             if self.update_flatness[i].is_empty() {
                 break;
             }
-            if self.update_flatness[i].len() < 1 {
+            if self.update_flatness[i].len() <= 1 {
                 break;
             }
 
@@ -543,8 +498,9 @@ impl PatchWorkpp {
             {
                 1.0
             } else {
-                1.0 / (1.0
-                    + ((candidate.ground_flatness - mu_flatness) / (mu_flatness / 10.0)).exp())
+                let a = candidate.ground_flatness - mu_flatness;
+                let b = mu_flatness / 10.0;
+                1.0 / (1.0 + (a / b).exp())
             };
 
             let prob_line = if candidate.line_variable > 8.0 {
@@ -553,9 +509,8 @@ impl PatchWorkpp {
                 1.0
             };
 
-            let revert = prob_line * prob_flatness > 0.5;
-
             if concentric_idx < self.params.num_rings_of_interest as usize {
+                let revert = prob_line * prob_flatness > 0.5;
                 if revert {
                     self.cloud_ground.add_cloud(&candidate.regionwise_ground);
                 } else {
@@ -572,7 +527,7 @@ impl PatchWorkpp {
 
         let mean = v.iter().sum::<f64>() / v.len() as f64;
 
-        let stdev = v.iter().map(|x| (*x - mean) * (*x + mean)).sum::<f64>() / (v.len() - 1) as f64;
+        let stdev = v.iter().map(|&x| (x - mean) * (x - mean)).sum::<f64>() / (v.len() - 1) as f64;
 
         let stdev = stdev.sqrt();
 
@@ -632,22 +587,24 @@ impl PatchWorkpp {
     fn pc2czm<R: Dim, C: Dim, S: std::fmt::Debug + RawStorage<f32, R, C>>(
         &mut self,
         src: &nalgebra::Matrix<f32, R, C, S>,
-        // cmz: &mut [Zone],
     ) {
         let max_range = self.params.max_range;
         let min_range = self.params.min_range;
+
         let min_ranges = [
             self.min_ranges[0],
             self.min_ranges[1],
             self.min_ranges[2],
             self.min_ranges[3],
         ];
+
         let num_ring = [
             self.params.num_rings_each_zone[0],
             self.params.num_rings_each_zone[1],
             self.params.num_rings_each_zone[2],
             self.params.num_rings_each_zone[3],
         ];
+
         let num_sector = [
             self.params.num_sectors_each_zone[0],
             self.params.num_sectors_each_zone[1],
@@ -655,36 +612,22 @@ impl PatchWorkpp {
             self.params.num_sectors_each_zone[3],
         ];
 
-        // println!("max_range: {:?}", max_range);
-        // println!("min_range: {:?}", min_range);
-        // println!("min_ranges: {:?}", min_ranges);
-        // println!("num_ring: {:?}", num_ring);
-        // println!("num_sector: {:?}", num_sector);
-
-        let (rows, _) = src.row_iter().enumerate().last().unwrap();
-        let rows = rows + 1;
-        // println!("rows: {:?}", rows);
-
-        for (i, row) in src.row_iter().enumerate() {
+        for (_i, row) in src.row_iter().enumerate() {
             let x = row[0] as f64;
             let y = row[1] as f64;
             let z = row[2] as f64;
-
-            // println!("i = {} x = {} y = {} z = {}", i, x, y, z);
 
             let r = xy2radius(x, y);
             if (r <= max_range) && (r > min_range) {
                 let theta = xy2theta(x, y);
 
                 let index = if r < min_ranges[1] {
-                    // In First rings
                     0
                 } else if r < min_ranges[2] {
                     1
                 } else if r < min_ranges[3] {
                     2
                 } else {
-                    // Far!
                     3
                 };
 
@@ -695,7 +638,7 @@ impl PatchWorkpp {
                 // println!(
                 //     "{}",
                 //     serde_json::to_string(&serde_json::json!({
-                //         "i": i,
+                //         "i": _i,
                 //         "index": index,
                 //         "x": x,
                 //         "y": y,
@@ -714,10 +657,15 @@ impl PatchWorkpp {
                 self.concentric_zone_model[index][ring_idx][sector_idx]
                     .push(Point3D::new(x as f32, y as f32, z as f32));
             } else {
+                // println!("push to cloud_nonground. i = {}", _i);
                 self.cloud_nonground
                     .push(Point3D::new(x as f32, y as f32, z as f32));
             }
         }
+        // println!(
+        //     "self.cloud_nonground.len() = {}",
+        //     self.cloud_nonground.len()
+        // );
     }
 
     fn extract_piecewiseground(
@@ -755,34 +703,47 @@ impl PatchWorkpp {
                     &mut self.ground_pc,
                     self.params.th_seeds_v,
                 );
-                let ground_pc = self.ground_pc.clone();
-                self.estimate_plane(&ground_pc);
+                // let ground_pc = self.ground_pc.clone();
+                self.estimate_plane(EstimatePlaneTarget::GroundPC);
 
                 if zone_index == 0 && self.normal[2] < self.params.uprightness_thr as f32 {
-                    let src_tmp = &src_wo_verticals;
-                    let iter = src_tmp
-                        .iter()
-                        .map(|point| {
-                            (
-                                point,
-                                crate::utils::calc_point_to_plane_d(&point, &self.normal, self.d),
-                            )
-                        })
-                        .into_split_filter(|(_, distance)| distance.abs() < self.params.th_dist_v);
+                    let src_tmp = src_wo_verticals.clone();
+                    src_wo_verticals.clear();
 
-                    let mut new_verticals = Points::from(vec![]);
-                    for item in iter {
-                        match item {
-                            (Some((point, _)), None) => {
-                                self.regionwise_nonground.push(*point);
-                            }
-                            (None, Some((point, _))) => {
-                                new_verticals.push(*point);
-                            }
-                            _ => unreachable!(),
+                    for point in src_tmp.iter() {
+                        let distance =
+                            crate::utils::calc_point_to_plane_d(&point, &self.normal, self.d);
+                        if distance.abs() < self.params.th_dist_v {
+                            self.regionwise_nonground.push(*point);
+                        } else {
+                            src_wo_verticals.push(*point);
                         }
                     }
-                    src_wo_verticals = new_verticals;
+
+                    // let src_tmp = &src_wo_verticals;
+                    // let iter = src_tmp
+                    //     .iter()
+                    //     .map(|point| {
+                    //         (
+                    //             point,
+                    //             crate::utils::calc_point_to_plane_d(&point, &self.normal, self.d),
+                    //         )
+                    //     })
+                    //     .into_split_filter(|(_, distance)| distance.abs() < self.params.th_dist_v);
+
+                    // let mut new_verticals = Points::from(vec![]);
+                    // for item in iter {
+                    //     match item {
+                    //         (Some((point, _)), None) => {
+                    //             self.regionwise_nonground.push(*point);
+                    //         }
+                    //         (None, Some((point, _))) => {
+                    //             new_verticals.push(*point);
+                    //         }
+                    //         _ => unreachable!(),
+                    //     }
+                    // }
+                    // src_wo_verticals = new_verticals;
                 } else {
                     break;
                 }
@@ -797,7 +758,7 @@ impl PatchWorkpp {
             self.params.th_seeds,
         );
 
-        self.estimate_plane(&self.ground_pc.clone());
+        self.estimate_plane(EstimatePlaneTarget::GroundPC);
 
         for i in 0..self.params.num_iter {
             self.ground_pc.clear();
@@ -819,9 +780,9 @@ impl PatchWorkpp {
             }
 
             if i < self.params.num_iter - 1 {
-                self.estimate_plane(&self.ground_pc.clone());
+                self.estimate_plane(EstimatePlaneTarget::GroundPC);
             } else {
-                self.estimate_plane(&self.regionwise_ground.clone());
+                self.estimate_plane(EstimatePlaneTarget::RegionwiseGround);
             }
         }
     }

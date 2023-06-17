@@ -75,14 +75,16 @@ fn test_estimate_plane() {
 
     let mut workpp = PatchWorkpp::new(params);
 
-    workpp.estimate_plane(&[
+    let dst = vec![
         Point3D::new(1.0, 2.0, 3.0),
         Point3D::new(4.0, 5.0, 6.0),
         Point3D::new(7.0, 8.0, 9.0),
         Point3D::new(11.0, 12.0, 13.0),
         Point3D::new(14.0, 15.0, 16.0),
         Point3D::new(17.0, 18.0, 19.0),
-    ]);
+    ];
+
+    workpp.estimate_plane(patchworkpp::EstimatePlaneTarget::Other(dst.into()));
 
     assert!(false)
 }
@@ -103,4 +105,18 @@ fn erase_vector() {
         v.drain(start + 1..start + num);
         assert_eq!(vec![0, 3, 4], v);
     }
+}
+
+#[test]
+fn test_math() {
+    use crate::utils::{xy2radius, xy2theta};
+
+    let x = 5.0;
+    let y = 6.0;
+
+    let r = xy2radius(x, y);
+    let theta = xy2theta(x, y);
+
+    assert_eq!(r, 7.810249675906654);
+    assert_eq!(theta, 0.8760580505981934);
 }

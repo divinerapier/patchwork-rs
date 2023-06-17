@@ -5,7 +5,6 @@ use patchwork::{Params, PatchWorkpp};
 
 fn main() {
     sequential();
-    println!("hello world");
     assert!(true);
 }
 

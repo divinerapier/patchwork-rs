@@ -1,7 +1,11 @@
 {
     "cSpell.words": [
+        "eigen",
         "nalgebra",
         "patchworkpp",
+        "piecewiseground",
+        "Regionwise",
+        "RVPF",
         "Workpp"
     ]
 }
