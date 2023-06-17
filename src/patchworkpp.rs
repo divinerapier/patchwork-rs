@@ -6,14 +6,15 @@ use crate::{
     Params, Point3D, Points, Ring, Zone,
 };
 
+#[derive(Debug)]
 pub struct PatchWorkpp {
     pub(crate) params: Params,
     timer: i64,
     time_taken: i64,
     update_flatness: [Vec<f64>; 4],
     update_elevation: [Vec<f64>; 4],
-    d: f64,
-    normal: OVector<f32, nalgebra::Const<3>>,
+    pub d: f64,
+    pub normal: OVector<f32, nalgebra::Const<3>>,
     singular_values: OVector<f32, nalgebra::Const<3>>,
     cov: nalgebra::Matrix3<f32>,
 
@@ -192,26 +193,14 @@ impl PatchWorkpp {
         let v_t = svd.v_t.take().unwrap();
         // debug_matrix("svd.v_t", &v_t);
 
-        // debug_matrix(
-        //     "xx",
-        //     &(u * nalgebra::matrix![
-        //         self.singular_values [0], 0.0, 0.0;
-        //         0.0, self.singular_values [1], 0.0;
-        //         0.0, 0.0, self.singular_values [2];
-        //     ] * v_t),
-        // );
-
-        // let u = svd.v_t.take().unwrap().transpose();
-        // debug_matrix("svd.u", &u);
-
-        let normal = u.column(2).to_owned();
+        let normal = u.column(2);
         self.normal = Vector3::new(normal[0], normal[1], normal[2]);
         // debug_matrix("normal", &self.normal);
 
         if self.normal[2] < 0.0 {
             self.normal = -self.normal;
         }
-        // debug_matrix("normal", &self.normal);
+        debug_matrix("normal", &self.normal);
 
         let seeds_mean = self.pc_mean;
         // debug_matrix("seeds_mean", &seeds_mean);
@@ -219,7 +208,7 @@ impl PatchWorkpp {
         let d = self.normal.transpose() * seeds_mean;
         // debug_matrix("d", &d);
 
-        self.d = d[0] as f64;
+        self.d = -d[0] as f64;
         // println!("self.d: {:?}\n", self.d);
     }
 
@@ -281,21 +270,13 @@ impl PatchWorkpp {
             // TODO: tracing
         }
 
-        // let start = Instant::now();
-
         if self.params.enable_RNR {
             self.reflected_noise_removal(cloud_in);
         }
 
-        // let t1 = Instant::now();
-
         self.flush_patches(); // ok
 
-        // let t1_1 = Instant::now();
-
         self.pc2czm(cloud_in); // ok
-
-        // let t2 = Instant::now();
 
         let mut concentric_idx = 0;
 

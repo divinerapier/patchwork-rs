@@ -36,7 +36,6 @@ pub fn debug_matrix<
     name: &str,
     matrix: &nalgebra::Matrix<T, R, C, S>,
 ) {
-    return;
     println!("debug matrix [{name}]:",);
     for (index, row) in matrix.row_iter().enumerate() {
         print!("[");

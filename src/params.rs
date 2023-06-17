@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Params {
     pub(crate) verbose: bool,
     pub(crate) enable_RNR: bool,
