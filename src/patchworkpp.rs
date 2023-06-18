@@ -242,14 +242,15 @@ impl PatchWorkpp {
             if cnt >= params.num_lpr {
                 break;
             }
-            sum += p_sorted[i].z;
+            sum += p_sorted[i].z as f64;
             cnt += 1;
         }
 
-        let lpr_height = if cnt != 0 { sum / (cnt as f32) } else { 0.0 };
+        let lpr_height = if cnt != 0 { sum / (cnt as f64) } else { 0.0 };
 
         for i in 0..p_sorted.len() {
-            if p_sorted[i].z < lpr_height + th_seeds as f32 {
+            let z = p_sorted[i].z as f64;
+            if z < lpr_height + th_seeds {
                 init_seeds.push(p_sorted[i].clone());
             }
         }
@@ -263,8 +264,8 @@ impl PatchWorkpp {
         &mut self,
         cloud_in: &mut nalgebra::Matrix<f32, R, C, S>,
     ) {
-        self.cloud_ground.clear(); // ok
-        self.cloud_nonground.clear(); // ok
+        self.cloud_ground.clear();
+        self.cloud_nonground.clear();
 
         if self.params.verbose {
             // TODO: tracing
@@ -274,9 +275,9 @@ impl PatchWorkpp {
             self.reflected_noise_removal(cloud_in);
         }
 
-        self.flush_patches(); // ok
+        self.flush_patches();
 
-        self.pc2czm(cloud_in); // ok
+        self.pc2czm(cloud_in);
 
         let mut concentric_idx = 0;
 
