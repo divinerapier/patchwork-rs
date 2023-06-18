@@ -209,7 +209,7 @@ impl PatchWorkpp {
         // debug_matrix("d", &d);
 
         self.d = -d[0] as f64;
-        // println!("self.d: {:?}\n", self.d);
+        println!("self.d: {:?}\n", self.d);
     }
 
     pub fn extract_initial_seeds_with_th_seed(
@@ -750,6 +750,10 @@ impl PatchWorkpp {
 
                 if i < self.params.num_iter - 1 {
                     if distance < self.params.th_dist {
+                        println!(
+                            "push to ground_pc. i = {i} distance = {distance} x = {} y = {} z = {}",
+                            point.x, point.y, point.z
+                        );
                         self.ground_pc.push(*point);
                     }
                 } else {
