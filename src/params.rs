@@ -14,7 +14,6 @@ pub struct Params {
     pub(crate) RNR_ver_angle_thr: f64,
     pub(crate) RNR_intensity_thr: f64,
 
-    pub(crate) sensor_height: f64,
     pub(crate) th_seeds: f64,
     pub(crate) th_dist: f64,
     pub(crate) th_seeds_v: f64,
@@ -30,9 +29,6 @@ pub struct Params {
 
     pub(crate) max_flatness_storage: i32,
     pub(crate) max_elevation_storage: i32,
-
-    pub(crate) elevation_thr: [f64; 4],
-    pub(crate) flatness_thr: [f64; 4],
 }
 
 impl Default for Params {
@@ -63,8 +59,6 @@ impl Default for Params {
 
             /// Noise points intensity threshold. The reflected points have relatively small intensity than others.
             RNR_intensity_thr: 0.2,
-
-            sensor_height: 1.723,
 
             /// threshold for lowest point representatives using in initial seeds selection of ground points.
             th_seeds: 0.125,
@@ -103,12 +97,6 @@ impl Default for Params {
 
             /// The maximum number of elevation storage
             max_elevation_storage: 1000,
-
-            /// threshold of elevation for each ring using in GLE. Those values are updated adaptively.
-            elevation_thr: [0.0, 0.0, 0.0, 0.0],
-
-            /// threshold of flatness for each ring using in GLE. Those values are updated adaptively.
-            flatness_thr: [0.0, 0.0, 0.0, 0.0],
         }
     }
 }

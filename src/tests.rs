@@ -73,7 +73,7 @@ fn test_estimate_plane() {
 
     let params = Params::default();
 
-    let mut workpp = PatchWorkpp::new(params);
+    let workpp = PatchWork::new(params);
 
     // let dst = vec![
     //     Point3D::new(1.0, 2.0, 3.0),
@@ -107,7 +107,9 @@ fn test_estimate_plane() {
         // [0.7039972 0.6148851 0.35539293 ]
         let params = Params::default();
 
-        let mut workpp = PatchWorkpp::new(params);
+        let mut ground = Ground::new(&params);
+
+        let workpp = PatchWork::new(params);
 
         let dst = vec![
             Point3D::new(0.186, 0.053, 0.468),
@@ -132,7 +134,10 @@ fn test_estimate_plane() {
             Point3D::new(0.369, 0.306, 0.988),
         ];
 
-        workpp.estimate_plane(patchworkpp::EstimatePlaneTarget::Other(dst.into()));
+        workpp.estimate_plane(
+            &mut ground,
+            patchwork::EstimatePlaneTarget::Other(dst.into()),
+        );
     }
 }
 
@@ -199,7 +204,7 @@ fn test_estimate_ground() {
         Point3D::new(369., 306., 988.),
     ];
 
-    let mut workpp = PatchWorkpp::new(params);
+    let workpp = PatchWork::new(params);
 
     let mut mat: nalgebra::Matrix<
         f32,
@@ -212,7 +217,7 @@ fn test_estimate_ground() {
         mat[(i, 1)] = points[i].y;
         mat[(i, 2)] = points[i].z;
     }
-    workpp.estimate_ground(&mut mat);
+    let ground = workpp.estimate_ground(&mut mat);
 
-    assert_eq!(workpp.d, 6.94197e-310);
+    assert_eq!(ground.d, 6.94197e-310);
 }
