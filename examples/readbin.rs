@@ -1,23 +1,16 @@
 use std::{io::Read, os::unix::prelude::MetadataExt, println};
 
-use nalgebra::{Const, Dyn, Dynamic, VecStorage};
-use patchwork::{Params, PatchWorkpp};
+use patchwork::{Params, PatchWork};
 
 fn main() {
     sequential();
     assert!(true);
 }
 
-// i = 115929 r = 13.750170634906302 z = -5.282143592834473 ver_angle_in_deg = -21.01433542566051
-// i = 115930 r = 13.783687151198826 z = -5.295128345489502 ver_angle_in_deg = -21.014731498586254
-// i = 118072 r = 26.416925607528498 z = -11.03048324584961 ver_angle_in_deg = -22.663153042742152
-
 fn sequential() {
     dotenv::dotenv().unwrap();
-    // println!("{:?}", std::env::var("RUST_MIN_STACK"));
 
     read_bin("data/000002.bin");
-    println!("xxx");
 }
 
 fn read_bin(path: &str) {
@@ -27,41 +20,6 @@ fn read_bin(path: &str) {
     let mut buffer = vec![];
     let result = file.read_to_end(&mut buffer).unwrap();
     let buffer_length = buffer.len();
-    // file.read_exact(&mut buffer).unwrap();
-    // println!("buffer = {:?}", &buffer[..100]);
-    // let points = {
-    //     let len = buffer_length / 4;
-    //     unsafe {
-    //         let v = Vec::from_raw_parts(buffer.as_mut_ptr() as *mut f32, len, len);
-    //         std::mem::forget(buffer);
-    //         v
-    //     }
-    // };
-
-    // // let points = unsafe { std::mem::transmute::<Vec<u8>, Vec<f32>>(buffer) };
-    // // println!("points = {:?}", &points[..25]);
-
-    // let num_points = points.len() / 4;
-    // // println!("num_points = {:?}", num_points);
-
-    // let mut mat: nalgebra::Matrix<f32, Dyn, Const<4>, nalgebra::VecStorage<f32, Dyn, Const<4>>> =
-    //     nalgebra::MatrixXx4::<f32>::zeros(num_points);
-    // // // super::debug_matrix("mat", &mat);
-    // for i in 0..num_points {
-    //     mat[(i, 0)] = points[i * 4] as f32;
-    //     mat[(i, 1)] = points[i * 4 + 1] as f32;
-    //     mat[(i, 2)] = points[i * 4 + 2] as f32;
-    //     mat[(i, 3)] = points[i * 4 + 3] as f32;
-    //     // println!(
-    //     //     "i = {} x = {} y = {} z = {}",
-    //     //     i,
-    //     //     points[i * 4] as f64,
-    //     //     points[i * 4 + 1] as f64,
-    //     //     points[i * 4 + 2] as f64
-    //     // );
-    // }
-
-    // let mut mat = patchwork::nx4f32_from_raw_buffer(buffer);
 
     let mut mat = patchwork::matrix_from_raw_buffer_drop_last::<3>(buffer);
 
@@ -134,35 +92,45 @@ fn read_bin(path: &str) {
     //     assert_eq!(left, right);
     // }
 
-    // for i in 0..mat.len() {
-    //     let left = mat.row(i);
-    //     let left = (left[0], left[1], left[2], left[3]);
-    //     let right = mak.row(i);
-    //     let right = (right[0], right[1], right[2], right[3]);
-
-    //     assert_eq!(left, right);
-    // }
-
-    // patchwork::debug_matrix("mat", &mat);
     println!("buffer.len() = {:?}, result = {}", buffer_length, result);
     println!("size = {:?}", size);
-    // println!("points.len() = {}", points.len());
     println!("num points: {}", mat.len());
     let params = Params::default();
-    let mut patchworkpp = PatchWorkpp::new(params);
-    patchworkpp.estimate_ground(&mut mat);
-    let ground = patchworkpp.get_ground();
-    println!("ground = ",);
-    // for row in ground.row_iter() {
-    //     println!("{} {} {}", row[0], row[1], row[2]);
-    //     return;
-    // }
+    let patchworkpp = PatchWork::new(params);
+    let ground = patchworkpp.estimate_ground(&mut mat);
 
     {
-        let row = ground.row_iter().next().unwrap();
+        let g = ground.get_ground();
+        println!("ground = ",);
+        println!("rows = {}", g.len() / 3);
+
+        let first = g.row(0);
+        println!("{} {} {}", first[0], first[1], first[2]);
+
+        let row = g.row(30000);
         println!("{} {} {}", row[0], row[1], row[2]);
 
-        let row = ground.row_iter().last().unwrap();
+        let last = g.row_iter().last().unwrap();
+        println!("{} {} {}", last[0], last[1], last[2]);
+
+        let row_sum = g.row_sum();
+        println!("{} {} {}", row_sum[0], row_sum[1], row_sum[2]);
+    }
+    {
+        let g = ground.get_nonground();
+        println!("non ground = ",);
+        println!("rows = {}", g.len() / 3);
+
+        let first = g.row(0);
+        println!("{} {} {}", first[0], first[1], first[2]);
+
+        let row = g.row(30000);
         println!("{} {} {}", row[0], row[1], row[2]);
+
+        let last = g.row_iter().last().unwrap();
+        println!("{} {} {}", last[0], last[1], last[2]);
+
+        let row_sum = g.row_sum();
+        println!("{} {} {}", row_sum[0], row_sum[1], row_sum[2]);
     }
 }
